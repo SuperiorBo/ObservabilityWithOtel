@@ -1,0 +1,62 @@
+extensions:
+  memory_ballast:
+    size_mib: 512
+  zpages:
+    endpoint: 0.0.0.0:55679
+  health_check:
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  hostmetrics:
+    collection_interval: 1m
+    scrapers:
+      cpu:
+      load:
+      memory:
+
+processors:
+  batch:
+  memory_limiter:
+    # 75% of maximum memory up to 2G
+    limit_mib: 1536
+    # 25% of limit up to 2G
+    spike_limit_mib: 512
+    check_interval: 5s
+
+exporters:
+  elasticsearch/trace:
+    endpoints: [https://192.120.5.57:9200]
+    user: elastic
+    password: elastic
+    tls:
+      insecure: true
+    # secret_token: AvFsEiPs==
+  elasticsearch/log:
+    endpoints: [https://192.120.5.57:9200]
+    user: elastic
+    password: elastic
+    tls:
+      insecure: true
+  debug:
+      verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug, elasticsearch/trace]
+    # metrics:
+    #   receivers: [otlp, hostmetrics]
+    #   processors: [memory_limiter, batch]
+    #   exporters: [debug]
+    logs: 
+      receivers: [otlp]
+      exporters: [debug, elasticsearch/log]
+
+  extensions: [memory_ballast, zpages]
